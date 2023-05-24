@@ -1,9 +1,6 @@
-import org.mariadb.jdbc.plugin.authentication.standard.ed25519.math.ed25519.Ed25519LittleEndianEncoding;
-
 import java.io.*;
 import java.sql.*;
-import java.util.InputMismatchException;
-import java.util.Scanner;
+import java.util.*;
 
 public class Main {
 
@@ -52,7 +49,8 @@ public class Main {
                 "1 - Mostrar Datos" + "\n" +
                 "2 - Borrar Datos" + "\n" +
                 "3 - Regenerar Datos" + "\n" +
-                "4 - Mostrar a que premio opta cada jugador" + "\n" +
+                "4 - Generar Premios" + "\n" +
+                "5 - Mostrar a que premio opta cada jugador" + "\n" +
                 "0 - Atrás"
         );
     }
@@ -61,6 +59,7 @@ public class Main {
         try {
             ResultSet rs = cnx.createStatement().executeQuery("select * from tipoPremio");
             rs.first();
+
             do {
                 if (aux.equals(rs.getString(2))){
                     return rs.getInt(1);
@@ -100,9 +99,9 @@ public class Main {
                 String Id_Premio = data[0];
                 String aux = data[1];
                 String Cantidad = data[2];
-                int Id_Tipo_Premio = buscarIdTipoPremio(aux, cnx);
+                int id_Tipo_Premio = buscarIdTipoPremio(aux.substring(1, aux.length()-1), cnx);
 
-                int res = st.executeUpdate("insert into premio values(" + Id_Premio + ", " + Id_Tipo_Premio + ", " + Cantidad + ")");
+                int res = st.executeUpdate("insert into premio values(" + Id_Premio + ", " + id_Tipo_Premio + ", " + Cantidad + ")");
                 if (res != 0) {
                     cont++;
                 }
@@ -269,23 +268,59 @@ public class Main {
         }
     }
 
-    public static void generarPremios(Connection cnx){
+    public static void generarPremioEnClasificacion(Connection cnx){
         try {
-            PreparedStatement psO = cnxA.prepareStatement("select * from opta where Id_Ranking = ?");
-            PreparedStatement psActualizar = cnxA.prepareStatement("update clasificacion set Id_Premio = ? where Ranking = ?");
-            Statement st = cnxA.createStatement();
+            Statement st = cnx.createStatement();
             st.executeUpdate("update clasificacion set Id_Premio = null");
+            PreparedStatement psO = cnx.prepareStatement("select * from opta where Id_Ranking = ?");
+            PreparedStatement psActualizar = cnx.prepareStatement("update clasificacion set Id_Premio = ? where Ranking = ?");
+            PreparedStatement psP = cnx.prepareStatement("select * from premio where Id_Tipo_Premio = ?");
+            PreparedStatement psPAsignado = cnx.prepareStatement("select * from clasificacion where Id_Premio = ?");
             ResultSet rsC = st.executeQuery("select * from clasificacion");
             ResultSet rsP = st.executeQuery("select * from premio");
             rsC.first();
             rsP.first();
 
             do {
-                psO.setInt(1, rsC.getInt(1));
+                ArrayList<Integer> ids = new ArrayList<>();
+                ArrayList<Integer> cant = new ArrayList<>();
+                psO.setInt(1, rsC.getInt(2));
                 ResultSet rsOJ = psO.executeQuery();
-
+                rsOJ.first();
+                do {
+                    psP.setInt(1, rsOJ.getInt(2));
+                    ResultSet rsPOJ = psP.executeQuery();
+                    rsPOJ.first();
+                    psPAsignado.setInt(1, rsPOJ.getInt(1));
+                    do {
+                        ResultSet rsAux = psPAsignado.executeQuery();
+                        rsAux.first();
+                        if (!rsAux.next()){
+                            ids.add(rsPOJ.getInt(1));
+                            cant.add(rsPOJ.getInt(3));
+                            rsOJ.last();
+                        }
+                    }while (rsPOJ.next());
+                }while (rsOJ.next());
+                int sel = 0;
+                System.out.println("Tamaño: " + ids.size());
+                if (ids.size() == 1){
+                    psActualizar.setInt(2, rsC.getInt(2));
+                    psActualizar.setInt(1, ids.get(0));
+                    psActualizar.executeUpdate();
+                }else {
+                    for (int i = 0; i < ids.size(); i++){
+                        System.out.println(ids.get(i));
+                        if (sel < cant.get(i)){
+                            sel = ids.get(i);
+                        }
+                    }
+                }
+                psActualizar.setInt(2, rsC.getInt(2));
+                psActualizar.setInt(1, sel);
+                System.out.println(rsC.getInt(2) + " " + sel);
+                psActualizar.executeUpdate();
             }while (rsC.next());
-
         }catch (SQLException e){
             e.printStackTrace();
         }
@@ -307,8 +342,8 @@ public class Main {
             generarDatosPremio(cnxB, CSV_PRE_B);
             generarDatosOpta(cnxA);
             generarDatosOpta(cnxB);
-            generarPremios(cnxA);
-            generarPremios(cnxB);
+            //generarPremioEnClasificacion(cnxA);
+            //generarPremioEnClasificacion(cnxB);
             cnxA.createStatement().execute("SET FOREIGN_KEY_CHECKS=1");
             cnxB.createStatement().execute("SET FOREIGN_KEY_CHECKS=1");
         } catch (SQLException e){
@@ -331,13 +366,14 @@ public class Main {
                 do {
                     mostrarMenu2();
                     opcion = leerInt();
-                    if (opcion >= 0 && opcion <= 4){
+                    if (opcion >= 0 && opcion <= 5){
                         try {
                             switch (opcion) {
                                 case 1 -> mostrarDatos(buscarDatosJugador(cnxAux));
                                 case 2 -> borrarDatos(cnxAux);
                                 case 3 -> generarDatosJugador(cnxAux, csvFile);
-                                case 4 -> mostrarDatosOptan(buscarDatosOptan(cnxAux), cnxAux);
+                                case 4 -> generarPremioEnClasificacion(cnxAux);
+                                case 5 -> mostrarDatosOptan(buscarDatosOptan(cnxAux), cnxAux);
                             }
                         }catch (SQLException e){
                             e.printStackTrace();
