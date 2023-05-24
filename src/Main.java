@@ -269,6 +269,28 @@ public class Main {
         }
     }
 
+    public static void generarPremios(Connection cnx){
+        try {
+            PreparedStatement psO = cnxA.prepareStatement("select * from opta where Id_Ranking = ?");
+            PreparedStatement psActualizar = cnxA.prepareStatement("update clasificacion set Id_Premio = ? where Ranking = ?");
+            Statement st = cnxA.createStatement();
+            st.executeUpdate("update clasificacion set Id_Premio = null");
+            ResultSet rsC = st.executeQuery("select * from clasificacion");
+            ResultSet rsP = st.executeQuery("select * from premio");
+            rsC.first();
+            rsP.first();
+
+            do {
+                psO.setInt(1, rsC.getInt(1));
+                ResultSet rsOJ = psO.executeQuery();
+
+            }while (rsC.next());
+
+        }catch (SQLException e){
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         Connection cnxAux = cnxA;
@@ -285,6 +307,8 @@ public class Main {
             generarDatosPremio(cnxB, CSV_PRE_B);
             generarDatosOpta(cnxA);
             generarDatosOpta(cnxB);
+            generarPremios(cnxA);
+            generarPremios(cnxB);
             cnxA.createStatement().execute("SET FOREIGN_KEY_CHECKS=1");
             cnxB.createStatement().execute("SET FOREIGN_KEY_CHECKS=1");
         } catch (SQLException e){
