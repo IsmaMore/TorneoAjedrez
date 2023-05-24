@@ -276,50 +276,53 @@ public class Main {
             PreparedStatement psO = cnx.prepareStatement("select * from opta where Id_Ranking = ?");
             PreparedStatement psP = cnx.prepareStatement("select * from premio where Id_Tipo_Premio = ?");
             PreparedStatement psPAsignado = cnx.prepareStatement("select * from clasificacion where Id_Premio = ?");
+            PreparedStatement psParticipa = cnx.prepareStatement("select Participa from jugador where Ranking = ?");
             ResultSet rsC = st.executeQuery("select * from clasificacion");
             ResultSet rsP = st.executeQuery("select * from premio");
             rsC.first();
             rsP.first();
 
             do {
-                ArrayList<Integer> ids = new ArrayList<>();
-                ArrayList<Integer> cant = new ArrayList<>();
-                psO.setInt(1, rsC.getInt(2));
-                ResultSet rsOJ = psO.executeQuery();
-                rsOJ.first();
-                do {
-                    psP.setInt(1, rsOJ.getInt(2));
-                    ResultSet rsPOJ = psP.executeQuery();
-                    rsPOJ.first();
+                psParticipa.setInt(1, rsC.getInt(2));
+                ResultSet rsParticipa = psParticipa.executeQuery();
+                rsParticipa.first();
+                if (rsParticipa.getBoolean(1)) {
+                    ArrayList<Integer> ids = new ArrayList<>();
+                    ArrayList<Integer> cant = new ArrayList<>();
+                    psO.setInt(1, rsC.getInt(2));
+                    ResultSet rsOJ = psO.executeQuery();
+                    rsOJ.first();
                     do {
-                        psPAsignado.setInt(1, rsPOJ.getInt(1));
-                        ResultSet rsAux = psPAsignado.executeQuery();
-                        if (!rsAux.first()){
-                            ids.add(rsPOJ.getInt(1));
-                            cant.add(rsPOJ.getInt(3));
-                            rsPOJ.last();
+                        psP.setInt(1, rsOJ.getInt(2));
+                        ResultSet rsPOJ = psP.executeQuery();
+                        rsPOJ.first();
+                        do {
+                            psPAsignado.setInt(1, rsPOJ.getInt(1));
+                            ResultSet rsAux = psPAsignado.executeQuery();
+                            if (!rsAux.first()) {
+                                ids.add(rsPOJ.getInt(1));
+                                cant.add(rsPOJ.getInt(3));
+                                rsPOJ.last();
+                            }
+                        } while (rsPOJ.next());
+                    } while (rsOJ.next());
+                    int sel = 0;
+                    int cantSel = 0;
+                    if (ids.size() == 1) {
+                        psActualizar.setInt(2, rsC.getInt(2));
+                        psActualizar.setInt(1, ids.get(0));
+                        psActualizar.executeUpdate();
+                    } else if (ids.size() > 1) {
+                        for (int i = 0; i < ids.size(); i++) {
+                            if (cantSel < cant.get(i)) {
+                                sel = ids.get(i);
+                                cantSel = cant.get(i);
+                            }
                         }
-                    }while (rsPOJ.next());
-                }while (rsOJ.next());
-                int sel = 0;
-                int cantSel = 0;
-                System.out.println("Tamaño: " + ids.size());
-                if (ids.size() == 1){
-                    psActualizar.setInt(2, rsC.getInt(2));
-                    psActualizar.setInt(1, ids.get(0));
-                    psActualizar.executeUpdate();
-                }else if (ids.size() > 1){
-                    for (int i = 0; i < ids.size(); i++){
-                        System.out.println(ids.get(i));
-                        if (cantSel < cant.get(i)){
-                            sel = ids.get(i);
-                            cantSel = cant.get(i);
-                        }
+                        psActualizar.setInt(2, rsC.getInt(2));
+                        psActualizar.setInt(1, sel);
+                        psActualizar.executeUpdate();
                     }
-                    psActualizar.setInt(2, rsC.getInt(2));
-                    psActualizar.setInt(1, sel);
-                    System.out.println(rsC.getInt(2) + " " + sel);
-                    psActualizar.executeUpdate();
                 }
             }while (rsC.next());
         }catch (SQLException e){
