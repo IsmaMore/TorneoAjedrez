@@ -272,8 +272,8 @@ public class Main {
         try {
             Statement st = cnx.createStatement();
             st.executeUpdate("update clasificacion set Id_Premio = null");
-            PreparedStatement psO = cnx.prepareStatement("select * from opta where Id_Ranking = ?");
             PreparedStatement psActualizar = cnx.prepareStatement("update clasificacion set Id_Premio = ? where Ranking = ?");
+            PreparedStatement psO = cnx.prepareStatement("select * from opta where Id_Ranking = ?");
             PreparedStatement psP = cnx.prepareStatement("select * from premio where Id_Tipo_Premio = ?");
             PreparedStatement psPAsignado = cnx.prepareStatement("select * from clasificacion where Id_Premio = ?");
             ResultSet rsC = st.executeQuery("select * from clasificacion");
@@ -291,35 +291,36 @@ public class Main {
                     psP.setInt(1, rsOJ.getInt(2));
                     ResultSet rsPOJ = psP.executeQuery();
                     rsPOJ.first();
-                    psPAsignado.setInt(1, rsPOJ.getInt(1));
                     do {
+                        psPAsignado.setInt(1, rsPOJ.getInt(1));
                         ResultSet rsAux = psPAsignado.executeQuery();
-                        rsAux.first();
-                        if (!rsAux.next()){
+                        if (!rsAux.first()){
                             ids.add(rsPOJ.getInt(1));
                             cant.add(rsPOJ.getInt(3));
-                            rsOJ.last();
+                            rsPOJ.last();
                         }
                     }while (rsPOJ.next());
                 }while (rsOJ.next());
                 int sel = 0;
+                int cantSel = 0;
                 System.out.println("Tamaño: " + ids.size());
                 if (ids.size() == 1){
                     psActualizar.setInt(2, rsC.getInt(2));
                     psActualizar.setInt(1, ids.get(0));
                     psActualizar.executeUpdate();
-                }else {
+                }else if (ids.size() > 1){
                     for (int i = 0; i < ids.size(); i++){
                         System.out.println(ids.get(i));
-                        if (sel < cant.get(i)){
+                        if (cantSel < cant.get(i)){
                             sel = ids.get(i);
+                            cantSel = cant.get(i);
                         }
                     }
+                    psActualizar.setInt(2, rsC.getInt(2));
+                    psActualizar.setInt(1, sel);
+                    System.out.println(rsC.getInt(2) + " " + sel);
+                    psActualizar.executeUpdate();
                 }
-                psActualizar.setInt(2, rsC.getInt(2));
-                psActualizar.setInt(1, sel);
-                System.out.println(rsC.getInt(2) + " " + sel);
-                psActualizar.executeUpdate();
             }while (rsC.next());
         }catch (SQLException e){
             e.printStackTrace();
